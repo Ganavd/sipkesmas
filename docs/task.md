@@ -1,0 +1,35 @@
+# Rebuild SIPKESMAS to Next.js - Task List
+
+- `[x]` 1. Setup Next.js & Dependency Management
+  - `[x]` Update `package.json` dan hapus dependency framework lama
+  - `[x]` Run `bun install` to update node_modules
+  - `[x]` Set up TSConfig & Tailwind v4 config for Next.js
+- `[x]` 2. Setup Supabase SSR & Auth Middleware
+  - `[x]` Create `lib/supabase/client.ts`
+  - `[x]` Create `lib/supabase/server.ts`
+  - `[x]` Create `lib/supabase/admin.ts`
+  - `[x]` Create `lib/supabase/middleware.ts`
+  - `[x]` Create root `middleware.ts` for route protection & role enforcement
+- `[x]` 3. Re-implement useAuth hook
+  - `[x]` Create client AuthProvider in `hooks/use-auth.tsx`
+- `[x]` 4. Migrate Server Functions to Next.js Server Actions
+  - `[x]` Create `actions/auth.ts`
+  - `[x]` Create `actions/keluarga.ts`
+  - `[x]` Create `actions/kunjungan.ts`
+  - `[x]` Create `actions/users.ts`
+  - `[x]` Create `actions/puskesmas.ts` (Tidak diperlukan, query langsung via RLS-enforced client)
+- `[x]` 5. Build Router/Pages dengan Next.js App Router
+  - `[x]` Create root `app/layout.tsx` and `app/page.tsx`
+  - `[x]` Create `app/login/page.tsx` (sebagai `app/(public)/login/page.tsx`)
+  - `[x]` Create `app/dashboard/layout.tsx` (sebagai `app/(authenticated)/layout.tsx`)
+  - `[x]` Create `app/dashboard/page.tsx` (sebagai `app/(authenticated)/dashboard/page.tsx`)
+  - `[x]` Create Puskesmas CRUD page (`app/(authenticated)/puskesmas/page.tsx`)
+  - `[x]` Create User Management page (`app/(authenticated)/users/page.tsx`)
+  - `[x]` Create Keluarga pages: list, tambah, detail (`app/(authenticated)/keluarga/*`)
+  - `[x]` Create Kunjungan pages: list, tambah, detail (`app/(authenticated)/kunjungan/*`)
+  - `[x]` Create Audit Log page (`app/(authenticated)/audit-log/page.tsx`)
+  - `[x]` Create Pengaturan page (`app/(authenticated)/pengaturan/page.tsx`)
+- `[x]` 6. Verify & Clean Up
+  - `[x]` Verify build compiles cleanly (`bun run build`)
+  - `[x]` Remove unused compatibility files and directories
+

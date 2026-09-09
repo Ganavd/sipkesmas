@@ -1,0 +1,72 @@
+{
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "middleware.ts",
+    ".next/types/**/*.ts"
+  ],
+  "compilerOptions": {
+    "target": "ES2022",
+    "jsx": "preserve",
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    /* Bundler mode */
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": false,
+    "noEmit": true,
+    /* Linting */
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "paths": {
+      "@/*": [
+        "./src/*",
+        "./*"
+      ],
+      "@/lib/auth.functions": [
+        "./src/lib/auth.functions.ts"
+      ],
+      "@/lib/users.functions": [
+        "./src/lib/users.functions.ts"
+      ],
+      "@/lib/keluarga.functions": [
+        "./src/lib/keluarga.functions.ts"
+      ],
+      "@/lib/kunjungan.functions": [
+        "./src/lib/kunjungan.functions.ts"
+      ],
+      "@/lib/dashboard.functions": [
+        "./src/lib/dashboard.functions.ts"
+      ],
+      "@/lib/notification.functions": [
+        "./src/lib/notification.functions.ts"
+      ],
+      "@/lib/workflow.functions": [
+        "./src/lib/workflow.functions.ts"
+      ]
+    },
+    "allowJs": true,
+    "incremental": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "exclude": [
+    "node_modules"
+  ]
+}
