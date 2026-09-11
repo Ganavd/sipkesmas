@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/_next/", "/api/", "/private/", "/dashboard/"],
+      disallow: ["/api/", "/private/", "/dashboard/"],
     },
     sitemap: "https://sipkesmas.my.id/sitemap.xml",
   };
