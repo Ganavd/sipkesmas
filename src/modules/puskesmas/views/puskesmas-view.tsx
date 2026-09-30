@@ -103,7 +103,7 @@ export function PuskesmasView() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Puskesmas"
+        title="Manajemen Puskesmas"
         description="Kelola data Puskesmas di bawah Dinas Kesehatan."
         actions={
           canManage ? (

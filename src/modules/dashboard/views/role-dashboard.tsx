@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Building2, Users, ClipboardList, HeartPulse, Activity, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/common/page-header";
 import { StatCard } from "@/modules/dashboard/components/stat-card";
+import { KunjunganPieChart } from "@/modules/dashboard/components/kunjungan-pie-chart";
 import { ROLES, ROLE_LABELS, type AppRole } from "@/lib/constants/roles";
 import { getDashboardStats, getDashboardActivity } from "@/lib/dashboard.functions";
 import { ActivityTimeline, type TimelineItem } from "@/components/common/activity-timeline";
@@ -36,6 +37,7 @@ export function RoleDashboard({ role }: { role: AppRole }) {
   const [stats, setStats] = useState<Stats | null>(null);
   const [activity, setActivity] = useState<ActivityData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartFiltering, setChartFiltering] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -63,6 +65,25 @@ export function RoleDashboard({ role }: { role: AppRole }) {
       live = false;
     };
   }, []);
+
+  const handleDateRangeChange = async (range: { from?: Date; to?: Date } | undefined) => {
+    setChartFiltering(true);
+    try {
+      const s = await getDashboardStats(
+        range?.from
+          ? {
+              startDate: range.from.toISOString(),
+              endDate: (range.to || range.from).toISOString(),
+            }
+          : undefined
+      );
+      setStats(s);
+    } catch {
+      // keep previous stats if error
+    } finally {
+      setChartFiltering(false);
+    }
+  };
 
   const cards = buildCards(stats);
   const timelineItems: TimelineItem[] = (activity?.auditLogs ?? []).map((l) => ({
@@ -239,6 +260,24 @@ export function RoleDashboard({ role }: { role: AppRole }) {
         )}
       </section>
 
+      {/* Bagian Grafik Diagram Pie Distribusi Kunjungan (Paling Bawah) */}
+      <section aria-label="Grafik Distribusi Kunjungan" className="w-full">
+        {loading ? (
+          <Skeleton className="h-[380px] w-full rounded-xl" />
+        ) : (
+          <KunjunganPieChart
+            role={role}
+            totalKunjungan={stats?.totalKunjungan ?? 0}
+            belumKonfirmasiKeluarga={stats?.belumKonfirmasiKeluarga ?? 0}
+            belumKonfirmasiKapus={stats?.belumKonfirmasiKapus ?? 0}
+            sedangDiproses={stats?.sedangDiproses ?? 0}
+            sudahSelesai={stats?.sudahSelesai ?? 0}
+            isLoading={chartFiltering}
+            onDateRangeChange={handleDateRangeChange}
+          />
+        )}
+      </section>
+
       <p className="text-xs text-muted-foreground">
         Anda masuk sebagai <span className="font-medium text-foreground">{ROLE_LABELS[role]}</span>.
       </p>
@@ -254,7 +293,6 @@ function buildCards(stats: Stats | null) {
       { label: "Total Puskesmas", value: f(stats.totalPuskesmas), icon: Building2 },
       { label: "Total Pengguna", value: f(stats.totalPengguna), icon: Users },
       { label: "Total Keluarga", value: f(stats.totalKeluarga), icon: HeartPulse },
-      { label: "Total Kunjungan", value: f(stats.totalKunjungan), icon: ClipboardList },
       { label: "User Aktif Hari Ini", value: f(stats.userAktifHariIni), icon: Activity },
       {
         label: "Registered Hari Ini",
@@ -273,7 +311,6 @@ function buildCards(stats: Stats | null) {
   if (stats.scope === "puskesmas") {
     return [
       { label: "Keluarga Binaan", value: f(stats.totalKeluarga), icon: HeartPulse },
-      { label: "Kunjungan", value: f(stats.totalKunjungan), icon: ClipboardList },
       { label: "Perawat", value: f(stats.totalPerawat), icon: Users },
       {
         label: "Draft Pending",
@@ -294,9 +331,8 @@ function buildCards(stats: Stats | null) {
     {
       label: "Keluarga Binaan",
       value: f(stats.totalKeluarga),
-      icon: ClipboardList,
+      icon: HeartPulse,
       hint: "Data keluarga aktif",
     },
-    { label: "Kunjungan", value: f(stats.totalKunjungan), icon: Activity },
   ];
 }

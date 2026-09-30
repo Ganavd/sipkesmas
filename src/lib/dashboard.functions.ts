@@ -27,81 +27,215 @@ async function getPuskesmasId(userId: string): Promise<string | null> {
   return data?.puskesmas_id ?? null;
 }
 
-export async function getDashboardStats() {
+export interface DashboardDateRange {
+  startDate?: string;
+  endDate?: string;
+}
+
+export async function getDashboardStats(dateRange?: DashboardDateRange) {
   const { userId } = await requireSupabaseAuth();
-    const role = await getRole(userId);
-    const puskesmasId = await getPuskesmasId(userId);
+  const role = await getRole(userId);
+  const puskesmasId = await getPuskesmasId(userId);
 
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const todayISO = today.toISOString();
-    if (role === "admin_dinkes") {
-      const [pusk, users, keluarga, kunjungan, aktifToday, draftPending, regKelToday, regKunToday] = await Promise.all([
-        supabaseAdmin.from("puskesmas").select("id", { count: "exact", head: true }).is("deleted_at", null),
-        supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).is("deleted_at", null),
-        supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("status", "aktif").is("deleted_at", null),
-        supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null),
-        supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).is("deleted_at", null).gte("last_activity_at", todayISO),
-        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("is_registered", false).eq("tindakan", "pengajuan").is("deleted_at", null),
-        supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("is_registered", true).eq("status", "aktif").gte("registered_at", todayISO).is("deleted_at", null),
-        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("is_registered", true).gte("registered_at", todayISO).is("deleted_at", null),
-      ]);
-      return {
-        role,
-        scope: "dinkes",
-        totalPuskesmas: pusk.count ?? 0,
-        totalPengguna: users.count ?? 0,
-        totalKeluarga: keluarga.count ?? 0,
-        totalKunjungan: kunjungan.count ?? 0,
-        userAktifHariIni: aktifToday.count ?? 0,
-        draftPending: draftPending.count ?? 0,
-        registeredHariIni: (regKelToday.count ?? 0) + (regKunToday.count ?? 0),
-      };
-    }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayISO = today.toISOString();
 
-    if ((role === "admin_puskesmas" || role === "perawat") && puskesmasId) {
-      const [keluarga, kunjungan, perawat, aktifToday, draftPending, regKelToday, regKunToday] = await Promise.all([
-        supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("status", "aktif").is("deleted_at", null),
-        supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null),
-        supabaseAdmin.rpc("count_perawat_in_puskesmas", { _puskesmas_id: puskesmasId }),
-        supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_active", true).is("deleted_at", null).gte("last_activity_at", todayISO),
-        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_registered", false).eq("tindakan", "pengajuan").is("deleted_at", null),
-        supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_registered", true).eq("status", "aktif").gte("registered_at", todayISO).is("deleted_at", null),
-        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_registered", true).gte("registered_at", todayISO).is("deleted_at", null),
-      ]);
-      return {
-        role,
-        scope: "puskesmas",
-        totalKeluarga: keluarga.count ?? 0,
-        totalKunjungan: kunjungan.count ?? 0,
-        totalPerawat: (perawat.data as number | null) ?? 0,
-        userAktifHariIni: aktifToday.count ?? 0,
-        draftPending: draftPending.count ?? 0,
-        registeredHariIni: (regKelToday.count ?? 0) + (regKunToday.count ?? 0),
-      };
-    }
+  let startISO: string | undefined;
+  let endISO: string | undefined;
 
-    // keluarga (warga)
-    const { data: family } = await supabaseAdmin
-      .from("keluarga")
-      .select("id, status")
-      .eq("user_id", userId)
-      .eq("status", "aktif")
-      .is("deleted_at", null)
-      .maybeSingle();
-    const [kel, kunjungan] = await Promise.all([
-      supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "aktif").is("deleted_at", null),
-      family
-        ? supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("keluarga_id", family.id).is("deleted_at", null)
-        : Promise.resolve({ count: 0 }),
+  if (dateRange?.startDate) {
+    const s = new Date(dateRange.startDate);
+    s.setHours(0, 0, 0, 0);
+    startISO = s.toISOString();
+  }
+  if (dateRange?.endDate) {
+    const e = new Date(dateRange.endDate);
+    e.setHours(23, 59, 59, 999);
+    endISO = e.toISOString();
+  }
+
+  // Helper query builder for kunjungan with optional date filters
+  const buildKunjunganQuery = (baseQuery: any) => {
+    let q = baseQuery;
+    if (startISO) q = q.gte("tanggal_kunjungan", startISO);
+    if (endISO) q = q.lte("tanggal_kunjungan", endISO);
+    return q;
+  };
+
+  if (role === "admin_dinkes") {
+    const kunTotalQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null)
+    );
+    const kunBelumKelQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("is_registered", false)
+    );
+    const kunBelumKapusQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("is_registered", true).eq("tindakan", "pengajuan")
+    );
+    const kunProsesQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("is_registered", true).in("tindakan", ["disetujui", "proses"])
+    );
+    const kunSelesaiQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("tindakan", "selesai")
+    );
+
+    const [
+      pusk,
+      users,
+      keluarga,
+      kunTotal,
+      kunBelumKonfKel,
+      kunBelumKonfKapus,
+      kunProses,
+      kunSelesai,
+      aktifToday,
+      draftPending,
+      regKelToday,
+      regKunToday,
+    ] = await Promise.all([
+      supabaseAdmin.from("puskesmas").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("status", "aktif").is("deleted_at", null),
+      kunTotalQ,
+      kunBelumKelQ,
+      kunBelumKapusQ,
+      kunProsesQ,
+      kunSelesaiQ,
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("is_active", true).is("deleted_at", null).gte("last_activity_at", todayISO),
+      supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("is_registered", false).eq("tindakan", "pengajuan").is("deleted_at", null),
+      supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("is_registered", true).eq("status", "aktif").gte("registered_at", todayISO).is("deleted_at", null),
+      supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("is_registered", true).gte("registered_at", todayISO).is("deleted_at", null),
     ]);
+
     return {
       role,
-      scope: "keluarga",
-      totalKeluarga: kel.count ?? 0,
-      totalKunjungan: kunjungan.count ?? 0,
-      draftPending: 0,
-      registeredHariIni: 0,
+      scope: "dinkes",
+      totalPuskesmas: pusk.count ?? 0,
+      totalPengguna: users.count ?? 0,
+      totalKeluarga: keluarga.count ?? 0,
+      totalKunjungan: kunTotal.count ?? 0,
+      belumKonfirmasiKeluarga: kunBelumKonfKel.count ?? 0,
+      belumKonfirmasiKapus: kunBelumKonfKapus.count ?? 0,
+      sedangDiproses: kunProses.count ?? 0,
+      sudahSelesai: kunSelesai.count ?? 0,
+      userAktifHariIni: aktifToday.count ?? 0,
+      draftPending: draftPending.count ?? 0,
+      registeredHariIni: (regKelToday.count ?? 0) + (regKunToday.count ?? 0),
     };
+  }
+
+  if ((role === "admin_puskesmas" || role === "perawat") && puskesmasId) {
+    const kunTotalQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null)
+    );
+    const kunBelumKelQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("is_registered", false)
+    );
+    const kunBelumKapusQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("is_registered", true).eq("tindakan", "pengajuan")
+    );
+    const kunProsesQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("is_registered", true).in("tindakan", ["disetujui", "proses"])
+    );
+    const kunSelesaiQ = buildKunjunganQuery(
+      supabaseAdmin.from("kunjungan").select("id, keluarga!inner(status, deleted_at)", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("keluarga.status", "aktif").is("keluarga.deleted_at", null).is("deleted_at", null).eq("tindakan", "selesai")
+    );
+
+    const [
+      keluarga,
+      kunTotal,
+      kunBelumKonfKel,
+      kunBelumKonfKapus,
+      kunProses,
+      kunSelesai,
+      perawat,
+      aktifToday,
+      draftPending,
+      regKelToday,
+      regKunToday,
+    ] = await Promise.all([
+      supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("status", "aktif").is("deleted_at", null),
+      kunTotalQ,
+      kunBelumKelQ,
+      kunBelumKapusQ,
+      kunProsesQ,
+      kunSelesaiQ,
+      supabaseAdmin.rpc("count_perawat_in_puskesmas", { _puskesmas_id: puskesmasId }),
+      supabaseAdmin.from("profiles").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_active", true).is("deleted_at", null).gte("last_activity_at", todayISO),
+      supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_registered", false).eq("tindakan", "pengajuan").is("deleted_at", null),
+      supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_registered", true).eq("status", "aktif").gte("registered_at", todayISO).is("deleted_at", null),
+      supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("puskesmas_id", puskesmasId).eq("is_registered", true).gte("registered_at", todayISO).is("deleted_at", null),
+    ]);
+
+    return {
+      role,
+      scope: "puskesmas",
+      totalKeluarga: keluarga.count ?? 0,
+      totalKunjungan: kunTotal.count ?? 0,
+      belumKonfirmasiKeluarga: kunBelumKonfKel.count ?? 0,
+      belumKonfirmasiKapus: kunBelumKonfKapus.count ?? 0,
+      sedangDiproses: kunProses.count ?? 0,
+      sudahSelesai: kunSelesai.count ?? 0,
+      totalPerawat: (perawat.data as number | null) ?? 0,
+      userAktifHariIni: aktifToday.count ?? 0,
+      draftPending: draftPending.count ?? 0,
+      registeredHariIni: (regKelToday.count ?? 0) + (regKunToday.count ?? 0),
+    };
+  }
+
+  // keluarga (warga)
+  const { data: family } = await supabaseAdmin
+    .from("keluarga")
+    .select("id, status")
+    .eq("user_id", userId)
+    .eq("status", "aktif")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  const kunTotalFamilyQ = family
+    ? buildKunjunganQuery(
+        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("keluarga_id", family.id).is("deleted_at", null)
+      )
+    : Promise.resolve({ count: 0 });
+
+  const kunDraftFamilyQ = family
+    ? buildKunjunganQuery(
+        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("keluarga_id", family.id).eq("is_registered", false).is("deleted_at", null)
+      )
+    : Promise.resolve({ count: 0 });
+
+  const kunProsesFamilyQ = family
+    ? buildKunjunganQuery(
+        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("keluarga_id", family.id).eq("is_registered", true).neq("tindakan", "selesai").is("deleted_at", null)
+      )
+    : Promise.resolve({ count: 0 });
+
+  const kunSelesaiFamilyQ = family
+    ? buildKunjunganQuery(
+        supabaseAdmin.from("kunjungan").select("id", { count: "exact", head: true }).eq("keluarga_id", family.id).eq("tindakan", "selesai").is("deleted_at", null)
+      )
+    : Promise.resolve({ count: 0 });
+
+  const [kel, kunTotal, kunBelumKonfirmasi, kunProses, kunSelesai] = await Promise.all([
+    supabaseAdmin.from("keluarga").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "aktif").is("deleted_at", null),
+    kunTotalFamilyQ,
+    kunDraftFamilyQ,
+    kunProsesFamilyQ,
+    kunSelesaiFamilyQ,
+  ]);
+
+  return {
+    role,
+    scope: "keluarga",
+    totalKeluarga: kel.count ?? 0,
+    totalKunjungan: kunTotal.count ?? 0,
+    belumKonfirmasiKeluarga: kunBelumKonfirmasi.count ?? 0,
+    sedangDiproses: kunProses.count ?? 0,
+    sudahSelesai: kunSelesai.count ?? 0,
+    draftPending: 0,
+    registeredHariIni: 0,
+  };
 }
 
 export async function getDashboardActivity() {
