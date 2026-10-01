@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   metadataBase: new URL("https://sipkesmas.my.id"),
   title: {
-    default: "SIPKESMAS — Sistem Informasi Perawatan Kesehatan Masyarakat",
+    default: "SIPKESMAS",
     template: "%s | SIPKESMAS",
   },
   description:
