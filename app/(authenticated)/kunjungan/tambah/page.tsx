@@ -27,6 +27,14 @@ import { ROLES } from "@/lib/constants/roles";
 function todayDate() { return new Date().toISOString().slice(0, 10); }
 function nowTime() { return new Date().toTimeString().slice(0, 5); }
 
+/**
+ * Gabungkan tanggal (YYYY-MM-DD) dan jam (HH:mm) menjadi ISO string
+ * dengan offset WIB (+07:00) agar tidak ada pergeseran jam saat disimpan.
+ */
+function toWIBIso(tanggal: string, jam: string): string {
+  return `${tanggal}T${jam}:00+07:00`;
+}
+
 const emptyForm = {
   keluarga_id: "",
   puskesmas_filter: "",
@@ -118,9 +126,9 @@ function KunjunganTambahPageContent() {
         keluarga_id: form.keluarga_id,
         jenis_kunjungan: form.jenis_kunjungan,
         perihal: form.perihal,
-        tanggal_kunjungan: `${form.tanggal}T${form.jam}:00`,
+        tanggal_kunjungan: toWIBIso(form.tanggal, form.jam),
         status: form.status,
-        dibuat_at: isBackdated ? `${form.dibuatTanggal}T${form.dibuatJam}:00` : undefined,
+        dibuat_at: isBackdated ? toWIBIso(form.dibuatTanggal, form.dibuatJam) : undefined,
       });
 
       if (suratIzin && user?.id) {

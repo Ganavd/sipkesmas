@@ -20,8 +20,21 @@ import {
 } from "@/modules/kunjungan/types";
 import { updateKunjungan } from "@/actions/kunjungan";
 
-function toDateInput(iso: string) { return iso.slice(0, 10); }
-function toTimeInput(iso: string) { return new Date(iso).toISOString().slice(11, 16); }
+function toDateInput(iso: string) {
+  // Ambil tanggal lokal WIB dari ISO string
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toTimeInput(iso: string) {
+  // Ambil jam lokal WIB — JANGAN pakai .toISOString() karena itu UTC
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toWIBIso(tanggal: string, jam: string): string {
+  return `${tanggal}T${jam}:00+07:00`;
+}
 
 export default function KunjunganEditPage() {
   const params = useParams();
@@ -65,7 +78,7 @@ export default function KunjunganEditPage() {
         patch: {
           jenis_kunjungan: jenis,
           perihal,
-          tanggal_kunjungan: `${tanggal}T${jam}:00`,
+          tanggal_kunjungan: toWIBIso(tanggal, jam),
         },
       });
       toast.success("Kunjungan berhasil diperbarui");

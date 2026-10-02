@@ -75,8 +75,9 @@ export function KeluargaKunjunganDetailView({ id }: Props) {
     }
     setSaving(true);
     try {
-      await ajukanPerubahanJadwal({ id, tanggalBaru: `${tanggalBaru}T${jamBaru}:00` });
-      toast.success("Jadwal perubahan berhasil dikirim");
+      // Sertakan offset +07:00 (WIB) agar jam tidak bergeser saat disimpan ke DB
+      await ajukanPerubahanJadwal({ id, tanggalBaru: `${tanggalBaru}T${jamBaru}:00+07:00` });
+      toast.success("Jadwal berhasil diubah! Tanggal & Jam Kunjungan sudah diperbarui.");
       clearBoxUbahJadwal();
       load();
     } catch (err) {
